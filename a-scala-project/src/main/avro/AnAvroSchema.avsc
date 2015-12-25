@@ -1,0 +1,9 @@
+{
+  "namespace" : "me.dan",
+  "name" : "AnAvroSchema",
+  "type" : "record",
+  "fields" : [
+    { "name" : "column1", "type" : "string" },
+    { "name" : "column2", "type" : "int" }
+  ]
+}
