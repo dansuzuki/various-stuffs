@@ -1,0 +1,293 @@
+<html>
+<head>
+<title>Talas - Subscribers Location Profile Proto</title>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="../scripts/bootstrap-cust/dist/css/bootstrap.min.css">
+<script type="text/javascript" src="../scripts/d3.min.js"></script><meta charset="utf-8">
+<style>
+/*
+.dot circle {
+  fill: lightsteelblue;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.dot circle.dragging {
+  fill: red;
+  stroke: brown;
+}
+*/
+.axis line {
+  fill: none;
+  stroke: #ddd;
+  shape-rendering: crispEdges;
+  vector-effect: non-scaling-stroke;
+}
+
+</style>
+<style>
+body {
+  padding-top: 40px;
+}
+
+/*
+ * Off Canvas
+ * --------------------------------------------------
+ */
+@media screen and (max-width: 768px) {
+  .row-offcanvas {
+    position: relative;
+    -webkit-transition: all 0.25s ease-out;
+    -moz-transition: all 0.25s ease-out;
+    transition: all 0.25s ease-out;
+    background:#ecf0f1;
+  }
+
+  .row-offcanvas-left
+  .sidebar-offcanvas {
+    left: -30%;
+  }
+
+  .row-offcanvas-left.active {
+    left: 30%;
+  }
+
+  .sidebar-offcanvas {
+    position: absolute;
+    top: 0;
+		bottom:0;
+    width: 30%;
+    margin-left: 12px;
+  }
+}
+
+#sidebar {
+    padding:15px;
+    margin-top:0;
+    height:100%;
+}
+
+/* Main styles */
+.cust-input-text {
+  padding-top:5px;
+  width: 210px;
+}
+.cust-summary {
+  font-size:45px;
+}
+.cust-info {
+  font-size:15px;
+  padding-left:5px;
+  font-weight:bold;
+}
+.cust-main-div {
+  background-color:#DBDBDB;
+  height:100%;
+}
+.nav li a {
+  color:#3C3C3C;
+}
+.cust-panel-body {
+	padding:0;
+}
+.cust-nav-menu a {
+	color: blue;
+}
+</style>
+<script>
+
+
+function render() {
+
+	/* Map */
+	var margin = {top: -5, right: -5, bottom: -5, left: -5}, // margin and position
+    	width = 500 - margin.left - margin.right, // panel width
+    	height = 500 - margin.top - margin.bottom; // panel height
+
+	var zoom = d3.behavior.zoom()
+			.translate([-1916,-285]) // init position
+		  .scaleExtent([1, 10])
+		  .on("zoom", zoomed)
+			;
+
+	var svg = d3.select(".stage")
+		.append("svg")
+    .attr("width", "100%") //width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .attr("transform", "translate(" + margin.left + "," + margin.right + ")")
+    .call(zoom)
+		;
+
+	var container = svg
+		.append("g")
+		.append("svg:image")
+		.attr("width", 2754)
+    .attr("height", 1397)
+    .attr("transform", "translate(-1916,-285)")
+		.attr("xlink:href","https://upload.wikimedia.org/wikipedia/commons/4/42/BlankMap-FlatWorld6.svg")
+	
+
+	function zoomed() {
+		container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+	}
+
+	/* Ticks */
+	var marginTicks = {top: 50, right: 50, bottom: 20, left: 50},
+		  widthTicks = 1320 - marginTicks.left - marginTicks.right,
+		  heightTicks = 80 - marginTicks.bottom - marginTicks.top;
+
+	var xTicks = d3.scale.linear()
+		  .domain([2000, 2016])
+		  .range([0, widthTicks])
+		  .clamp(true);
+
+	var brushTicks = d3.svg.brush()
+		  .x(xTicks)
+		  .extent([0, 0])
+		  .on("brush", brushed);
+
+	var svgTicks = d3.select(".ticks").append("svg")
+		  .attr("width", widthTicks + marginTicks.left + marginTicks.right)
+		  .attr("height", heightTicks + marginTicks.top + marginTicks.bottom)
+		.append("g")
+		  .attr("transform", "translate(" + marginTicks.left + "," + marginTicks.top + ")");
+
+	svgTicks.append("g")
+		  .attr("class", "x axis")
+		  .attr("transform", "translate(0," + heightTicks / 2 + ")")
+		  .call(d3.svg.axis()
+		    .scale(xTicks)
+		    .orient("bottom")
+		    .tickFormat(function(d) { return d; })
+		    .tickSize(0)
+		    .tickPadding(12))
+		.select(".domain")
+		.select(function() { return this.parentNode.appendChild(this.cloneNode(true)); })
+		  .attr("class", "halo");
+
+	var sliderTicks = svgTicks.append("g")
+		  .attr("class", "slider")
+		  .call(brushTicks);
+
+	sliderTicks.selectAll(".extent,.resize")
+		  .remove();
+
+	sliderTicks.select(".background")
+.style("visibility", "visible")
+		  .attr("height", 4)
+		  .attr("transform", "translate(0," + heightTicks / 2 + ")");
+
+	var handleTicks = sliderTicks.append("circle")
+		  .attr("class", "handle")
+		  .attr("transform", "translate(0," + heightTicks / 2 + ")")
+		  .attr("r", 9);
+
+	function brushed() {
+		var value = brushTicks.extent()[0];
+
+		if (d3.event.sourceEvent) { // not a programmatic event
+		  value = xTicks.invert(d3.mouse(this)[0]);
+		  brushTicks.extent([value, value]);
+		}
+
+		handleTicks.attr("cx", xTicks(value));
+	}
+}
+</script>
+</head>
+<body onload="render()">
+  <div class="navbar navbar-fixed-top navbar-default cust-navbar" role="navigation">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand"  href="http://talas.ph">
+              <img alt="Brand" style="margin-top:-5px; width: 30px;
+      height: 25px; " src="../themes/talas-logo-final.png">
+            </a>
+            <!--<div class="navbar-brand cust-input-text">
+              <input type="text" class="form-control" placeholder="What would you like to know?">
+            </div>-->
+        </div>
+        <div class="collapse navbar-collapse">
+            <ul class="nav navbar-nav navbar-right">
+                <li class="active cust-nav-menu"><a href="#">Dashboard</a></li>
+                <li><a href="#">Insights</a></li>
+                <li><a href="#">About</a></li>
+            </ul>
+        </div>
+        <!-- /.nav-collapse -->
+    </div>
+    <!-- /.container -->
+</div>
+<!-- /.navbar -->
+
+<div class="container-fluid cust-container-fluid" >
+    <div class="row row-offcanvas row-offcanvas-left">
+        <div class="col-xs-6 col-sm-2 sidebar-offcanvas" style="background-color:#9C9C9C;" id="sidebar" role="navigation">
+            <div class="sidebar-nav">
+                <ul class="nav">
+                  <li><input type="text" class="form-control" placeholder="What would you like to know?"></li>
+                  <li class="nav-divider"></li>
+                  <li class="active"><a href="#">Roamer Type</a></li>
+                  <li><a href="#">&nbsp;&nbsp;&nbsp;Inbound</a></li>
+                  <li><a href="#">&nbsp;&nbsp;&nbsp;Outbound</a></li>
+                  <li class="nav-divider"></li>
+                  <li><a href="#">Other Menu 1</a></li>
+                  <li><a href="#">Other Menu 2</a></li>
+                  <li><a href="#">Other Menu 3</a></li>
+                </ul>
+            </div>
+            <!--/.well -->
+        </div>
+        <!--/span-->
+
+
+        <div class="col-xs-12 col-sm-10 cust-main-div">
+          <div class="row">
+            <div class="col-xs-6">
+              <br>
+              <div class="alert alert-success" role="alert">
+                <p class="cust-summary">123,456</p>
+                <p class="cust-info">Inbound Roamers</p>
+              </div>
+              <div class="alert alert-info" role="alert">
+                <p class="cust-summary">25,123,456</p>
+                <p class="cust-info">All Subscribers</p>
+              </div>
+              <div class="alert alert-danger" role="alert">
+                <p class="cust-summary">456,129,123</p>
+                <p class="cust-info">Metric 1</p>
+              </div>
+              <div class="alert alert-warning" role="alert">
+                <p class="cust-summary">927,123</p>
+                <p class="cust-info">Metric 2</p>
+              </div>
+            </div>
+            <div class="col-xs-6">
+							<br>
+							<div class="panel panel-default">
+								<div class="panel-heading">Vector Map</div>
+								<div class="panel-body cust-panel-body">
+									 <div class="stage"></div>
+								</div>
+							</div>
+        		</div>
+          </div><!--/row-->
+
+					<div class="row">
+						<div class="ticks"></div>
+					</div>
+        </div>
+        <!--/span-->
+
+
+    </div>
+    <!--/row-->
+</div>
+<!--/.container-->
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<style>
+
+.dot circle {
+  fill: lightsteelblue;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.dot circle.dragging {
+  fill: red;
+  stroke: brown;
+}
+
+.axis line {
+  fill: none;
+  stroke: #ddd;
+  shape-rendering: crispEdges;
+  vector-effect: non-scaling-stroke;
+}
+
+</style>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<script>
+
+
+function render() {
+
+	var margin = {top: -5, right: -5, bottom: -5, left: -5}, // margin and position
+    	width = 500 - margin.left - margin.right, // panel width
+    	height = 500 - margin.top - margin.bottom; // panel height
+
+	var zoom = d3.behavior.zoom()
+			.translate([-1916,-285]) // init position
+		  .scaleExtent([1, 10])
+		  .on("zoom", zoomed)
+			;
+
+	var svg = d3.select(".stage")
+		.append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .attr("transform", "translate(" + margin.left + "," + margin.right + ")")
+    .call(zoom)
+		;
+
+	var container = svg
+		.append("g")
+		.append("svg:image")
+		.attr("width", 2754)
+    .attr("height", 1397)
+    .attr("transform", "translate(-1916,-285)")
+		.attr("xlink:href","https://upload.wikimedia.org/wikipedia/commons/4/42/BlankMap-FlatWorld6.svg")
+	
+
+	function zoomed() {
+		container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+	}
+}
+</script>
+
+</head>
+
+<body onload="render()">
+	<div class="stage">
+	</div>
+</body>
