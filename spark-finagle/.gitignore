@@ -1,3 +1,5 @@
+/.cache/
+/tmp/
 /target/
 /.project
 /.settings/
