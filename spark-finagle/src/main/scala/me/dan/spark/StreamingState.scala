@@ -1,6 +1,7 @@
 package me.dan.spark
 
 import org.apache.spark.SparkConf
+
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.Seconds
 import akka.actor.Actor
@@ -28,35 +29,56 @@ object CustomActor {
 
 object StreamingState extends App {
 
+  val sparkConf = new SparkConf()
+    .setAppName("Streaming State")
+    .setMaster("local[*]")
+    .set("spark.akka.logLifecycleEvents", "true")
+    .set("spark.logConf", "true")
+  val checkpointPath = "./tmp/" + this.getClass.getCanonicalName
+  def createStreamingContext(): StreamingContext = new StreamingContext(sparkConf, Seconds(10))
+
   // entry point here
   run()
 
   def run() {
-    val sparkConf = new SparkConf()
-      .setAppName("Streaming State")
-      .setMaster("local[*]")
-      .set("spark.akka.logLifecycleEvents", "true")
-      .set("spark.logConf", "true")
 
-    val ssc = new StreamingContext(sparkConf, Seconds(5))
-    ssc.checkpoint("./tmp/" + this.getClass.getCanonicalName)
+    val ssc = StreamingContext.getOrCreate(checkpointPath, createStreamingContext)
+    ssc.sparkContext.setCheckpointDir(checkpointPath + "/for_rdd")
 
+    var storeRDD = ssc.sparkContext.emptyRDD[(String, Int)].map(e => e).persist(StorageLevel.MEMORY_AND_DISK_SER_2)
     val lines = ssc.actorStream[String](Props[CustomActor], CustomActor.name)
     val words = lines.flatMap(_.split(" "))
-    val pairs = words.map(word => (word, 1))
-    val wordCounts = pairs.reduceByKey(_ + _)
+    val pairs = words.map(word => (DateOps.timeInHHmm(), 1)) //.window(Seconds(300))
+    val wordsPerMinute = pairs.reduceByKey(_ + _)
 
-    val updated = wordCounts.updateStateByKey(updateFunc)
+    wordsPerMinute.transform(batchRDD => {
+      /** dispose previous data */
+      storeRDD.unpersist(false)
+
+      /** reference minute */
+      val startHHmm = DateOps.pastHHmm(3)
+      
+      storeRDD = batchRDD
+        /** join with the delta data */
+        .fullOuterJoin(storeRDD)
+        /** update state goes here */
+        .mapValues(vv => vv._1.getOrElse(0) + vv._2.getOrElse(0))
+        /** window filtering goes here */
+        .filter(_._1.compareTo(startHHmm) > 0)
+
+      /** now persist */
+      storeRDD.persist(StorageLevel.MEMORY_AND_DISK_SER_2)
+      storeRDD.checkpoint()
+      storeRDD
+    }).print(10)
+
+    //wordsPerMinute.print(10)
+    /*
+    val updated = wordCounts.updateStateByKey(updateFunc).window(Seconds(300)) // 5 minutes
     updated.print(20)
-    val transformed = updated.transform(rdd => {
-      val filtered = rdd.filter(!_._1.equals("the"))
-      filtered.checkpoint()
-      filtered
-    })
-    transformed.print(20)
+		*/
     ssc.start()
     ActorSender(SparkEnv.get.actorSystem, ssc.sparkContext.getConf)
-    ssc.awaitTermination()
     ssc.stop(true, true)
 
   }

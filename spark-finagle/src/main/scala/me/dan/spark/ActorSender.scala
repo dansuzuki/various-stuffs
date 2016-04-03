@@ -9,20 +9,30 @@ import scala.concurrent.ExecutionContext
 import org.apache.spark.SparkConf
 import scala.concurrent.Await
 
+
+/**
+ * Warning!!! This is used for testing only.
+ */
 object ActorSender {
 
+  
+  private var _stop:Boolean = false
+  
+  def isStopped:Boolean = this.synchronized({ this._stop })
+  def stop = this.synchronized({this._stop = true})
+  
+  
   implicit val ec = ExecutionContext.global
+  
   def apply(system: ActorSystem, conf: SparkConf) {
-    Future {
-      //val url = "akka.tcp://spark@" + conf.get("spark.driver.host") + ":" + conf.get("spark.driver.port") + "user/Supervisor0/" + CustomActor.name
-      val actorReceiver = system.actorSelection("akka://sparkDriver/user/Supervisor0/CustomActor")
-      println("Now ready to send messages!!!")
-      while (true) {
-        actorReceiver ! "the quick brown fox jumps over the lazy dog"
-        //println(">>> sent a message")
-        Thread.sleep(1000)
-      }
+    val actorReceiver = system.actorSelection("akka://sparkDriver/user/Supervisor0/CustomActor")
+    println("Now ready to send messages!!!")
+    while (!isStopped) {
+      actorReceiver ! "the quick brown fox jumps over the lazy dog"
+      Thread.sleep(500)
     }
+    readLine
+    stop
   }
 
 }
