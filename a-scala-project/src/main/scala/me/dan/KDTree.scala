@@ -1,25 +1,11 @@
 package me.dan
 
+//import me.dan.scala.Geo
+
+import scala.math.BigDecimal
 import scala.reflect.ClassTag
 import scala.util.Try
 import sext._
-
-/** the following is from http://www.movable-type.co.uk/scripts/latlong.html */
-object haversine {
-  final val earthDiameter:Int = 12742 // in kilometres
-  final val earthRadius:Int = 6371000 // in metres
-  def apply(lat1: Double, long1: Double, lat2: Double, long2: Double): Double = {
-    val lat1Radians = Math.toRadians(lat1)
-    val lat2Radians = Math.toRadians(lat2)
-    val deltaLat = Math.toRadians(lat2 - lat1)
-    val deltaLong = Math.toRadians(long2 - long1)
-    val a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-      Math.cos(lat1Radians) * Math.cos(lat2Radians) *
-      Math.sin(deltaLong / 2) * Math.sin(deltaLong / 2)
-    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    earthRadius * c
-  }
-}
 
 object KDTree {
   abstract class Dimension
@@ -41,7 +27,7 @@ object KDTree {
   case class Box(ll: DD,  ur: DD) {
     val lr: DD = (ur._1, ll._2)
     val ul: DD = (ll._1, ur._2)
-    val distance: Double = haversine(ll._1, ll._2, ur._1, ur._2)
+    val distance: Double = Geo.haversine(ll._2, ll._1, ur._2, ur._1)
   }
 
   case class Node(
@@ -50,32 +36,50 @@ object KDTree {
     right: Option[Node],
     points: Option[List[DD]]
   )
-  def intersects(n: Node)(pt: DD): Boolean =
-    n.box.ll._1 < pt._1 && pt._1 < n.box.ur._1 && n.box.ll._2 < pt._2 && pt._2 < n.box.ur._2
 
-  def intersects(bias: Bias)(n: Node)(pt: DD): Boolean = {
-    bias match {
-        case NE => n.box.ll._1 < pt._1 && pt._1 <= n.box.ur._1 && n.box.ll._2 < pt._2 && pt._2 <= n.box.ur._2
-        case SE => n.box.ll._1 < pt._1 && pt._1 <= n.box.ur._1 && n.box.ll._2 <= pt._2 && pt._2 < n.box.ur._2
-        case NW => n.box.ll._1 <= pt._1 && pt._1 < n.box.ur._1 && n.box.ll._2 < pt._2 && pt._2 <= n.box.ur._2
-        case SW => n.box.ll._1 <= pt._1 && pt._1 < n.box.ur._1 && n.box.ll._2 <= pt._2 && pt._2 < n.box.ur._2
+  final val emptyListDD = List[DD]()
+
+  /**
+   * possible points under a square selection
+   * DD = (lat, long) OR (y, x)
+   */
+  def pointsUnderSelection(n: Node)(sw: DD, ne: DD): List[DD] = {
+    def intersect(b: Box): Boolean =
+      Geo.intersect(sw._1, sw._2, ne._1, ne._2, b.ll._2, b.ll._1, b.ur._2, b.ur._1)
+
+    /** check left and right regions */
+    def checkLeftAndRight(n: Node, sw: DD, ne: DD): List[DD] = {
+      val left = n.left.get
+      val right = n.right.get
+
+      val fromLeft =
+        if(intersect(left.box)) traverse(left, sw, ne)
+        else emptyListDD
+
+      val fromRight =
+        if(intersect(right.box)) traverse(right, sw, ne)
+        else emptyListDD
+
+      fromLeft ++ fromRight
     }
-  }
 
-  def whereIsThis(n: Node)(pt: DD): Node = {
-    if(n.left == None && n.right == None) n
-    else
-      if(intersects(n.left.get)(pt)) whereIsThis(n.left.get)(pt)
-      else if(intersects(n.right.get)(pt)) whereIsThis(n.right.get)(pt)
-      else n
+    /** traverse via recursive to the next point */
+    def traverse(n: Node, sw: DD, ne: DD): List[DD] = {
+      if(n.points != None) n.points.get
+      else checkLeftAndRight(n, sw, ne)
+    }
+
+    /** actual entry point is here */
+    if(!intersect(n.box)) emptyListDD
+    else checkLeftAndRight(n, sw, ne)
   }
 
   /**
-   * x = latitude
-   * y = longitude
+   * x = longitude
+   * y = latitude
    * ((minx, miny), (maxx, maxy))
    */
-  final val minMaxCoord = ((90.0, 180.0), (-90.0, -180.0))
+  final val minMaxCoord = ((180.0, 90.0), (-180.0, -90.0))
 
   /**
    * entry point
@@ -171,12 +175,51 @@ object KDTree {
     )
   }
 
+
+
   @throws(classOf[Exception])
   def main(args: Array[String]) {
+    val toDbl = (d: String) => Try[Double](d.toDouble).getOrElse(0.0)
 
-    val points = (1 to 10000).map(n => (n / 1.0, n / 2.0)).toList
+    val stream = this.getClass.getResourceAsStream("/philippine_random_points.txt")
+    val lines = scala.io.Source.fromInputStream( stream ).getLines
+
+    val points = lines
+      .map(l => l.split(","))
+      .map(f => (toDbl(f(3)), toDbl(f(1))))
+      .filter(_ match {
+        case (0.0, 0.0) => false
+        case _ => true
+      }).toList
+    points.take(5).foreach(println)
+
     val tree = KDTree(points)
-    //println(tree.valueTreeString)
-    println(whereIsThis(tree)((9823.0, 4916.5)))
+
+    val pointA = (args(0).toDouble, args(1).toDouble)
+    val dist = args(2).toDouble
+
+    val selCircle = Geo.Circle(pointA._1, pointA._2, dist)
+    println(selCircle)
+    val doesIntersect = Geo.intersect(selCircle) _
+    val selSquare = Geo.selectGrid(pointA._1, pointA._2)(dist)
+    println(selSquare)
+
+    println("kdtree approach...")
+    val pts = pointsUnderSelection(tree)(selSquare.sw, selSquare.ne)
+    println("false positives...")
+    pts.foreach(println)
+    println("----")
+    pts.foreach(kv => {
+      val dist = Geo.haversine(kv._2, kv._1, selCircle.lat, selCircle.long)
+      println(dist + " < " + selCircle.radius + " = " + (dist < selCircle.radius))
+    })
+    println("actual...")
+    pts.filter(xy => doesIntersect(xy._2, xy._1)).foreach(xy => println((xy._2, xy._1)))
+
+
+    println("heuristic approach...")
+    points.filter(xy => doesIntersect(xy._2, xy._1)).foreach(xy => println((xy._2, xy._1)))
   }
+
+
 }
