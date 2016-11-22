@@ -4,6 +4,12 @@
 	<groupId>me.dan</groupId>
 	<artifactId>spark-finagle</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<repositories>
+		<repository>
+			<id>twitter-twttr</id> 
+			<url>http://maven.twttr.com/</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>org.scala-lang</groupId>
@@ -13,7 +19,12 @@
 		<dependency>
 			<groupId>com.twitter</groupId>
 			<artifactId>finagle-http_2.10</artifactId>
-			<version>6.31.0</version>
+			<version>6.35.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>twitter-server_2.10</artifactId>
+			<version>1.20.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
@@ -54,7 +65,7 @@
 
 
 				<!-- build helper -->
-				<!--This plugin's configuration is used to store Eclipse m2e settings 
+				<!--This plugin's configuration is used to store Eclipse m2e settings
 					only. It has no influence on the Maven build itself. -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
