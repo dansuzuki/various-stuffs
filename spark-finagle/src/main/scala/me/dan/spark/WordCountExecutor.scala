@@ -65,26 +65,31 @@ object WordCountExecutor {
   def output(id: Int) =
     sc.textFile("/tmp/word_count/out_" + id).collect.toList
 
-
-
   def process(jobId: Int, contentIds: List[Int]) {
     statuses(jobId) = Running
     val promise = new Promise[(Int, List[Int])]
-    val future = pool { promise map(kv => run(kv._1, kv._2)) }
-    future.onSuccess { n => statuses(jobId) = Successful }
-    future.onFailure { case e: Exception => statuses(jobId) = Failed }
+    val future = promise map(kv => run(kv._1, kv._2))
+    future.onSuccess { 
+      n => statuses(jobId) = Successful
+    }
+    future.onFailure {
+      case e: Exception => {
+        println(e)
+        statuses(jobId) = Failed
+      }
+    }
     promise setValue((jobId, contentIds))
   }
 
   def run(jobId: Int, contentIds: List[Int]) {
     Future.value({
-      val rdd: RDD[String] = contentIds map(id => sc.textFile("/tmp/word_count/in_" + id + ".txt")) reduce(_ union _)
+      val rdd: RDD[String] = contentIds map(id => sc.textFile("/tmp/word_count/input/in_" + id + ".txt")) reduce(_ union _)
       rdd
         .flatMap(_.split("\\s+"))
         .map((_, 1L))
         .reduceByKey(_ + _)
         .map(kv => kv._1 + "|" + kv._2)
-        .saveAsTextFile("/tmp/word_count/out_" + id)
+        .saveAsTextFile("/tmp/word_count/out_" + jobId)
     })
   }
 

@@ -39,15 +39,19 @@ object WordCountService {
     }
   }
 
-  def process = service { (req: http.Request) => {
+  def process = new Service[Request, Response] {
+    def apply(req: http.Request): Future[Response] = {
       val resp = http.Response(req.version, http.Status.Ok)
       val jobId = WCE.id
 
+      /** this should not block */
       WCE.process(jobId, req.contentString.split(",").map(_.toInt).toList)
 
-      resp.contentString = jobId.toString
-      resp.contentType = "html/text"
-      resp
+      Future.value({
+        resp.contentString = jobId.toString
+        resp.contentType = "html/text"
+        resp
+      })
     }
   }
 
