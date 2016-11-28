@@ -6,7 +6,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<repositories>
 		<repository>
-			<id>twitter-twttr</id> 
+			<id>twitter-twttr</id>
 			<url>http://maven.twttr.com/</url>
 		</repository>
 	</repositories>
@@ -106,6 +106,9 @@
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
+				<configuration>
+					<recompileMode>incremental</recompileMode>
+				</configuration>
 				<executions>
 					<execution>
 						<id>scala-compile-first</id>
